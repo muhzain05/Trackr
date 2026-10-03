@@ -1,193 +1,139 @@
-<!-- Project: Trackr - Job application tracker -->
 # Trackr
 
-![Node.js](https://img.shields.io/badge/Runtime-Node.js-green)  ![Vite](https://img.shields.io/badge/DevTool-Vite-blue)  ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
+A job-application tracking prototype with two partially separate application paths:
 
-Trackr is a lightweight, privacy-focused job application tracker (a personal CRM) to help you manage applications, follow-ups, resumes, and reminders. It ships as a Vite-powered frontend and an Express backend, and is ready to integrate with Firebase (Auth / Firestore / Storage) for production use.
+- a browser UI that stores application data in Firestore and resume variants in local storage
+- an Express REST API prototype backed by an in-memory application store
 
----
+The current frontend is primarily a **Vue application mounted from <code>frontend/src/services/app.js</code>**, even though React packages are also installed in the frontend workspace.
 
-## Table of Contents
-- [Description](#description)
-- [Technologies Used](#technologies-used)
-- [Project Structure](#project-structure)
-- [Architecture Flow](#architecture-flow)
-- [Data & Storage](#data--storage)
-- [Installation & Setup](#installation--setup)
-- [Usage](#usage)
-- [Scripts](#scripts)
-- [Firebase integration (recommended)](#firebase-integration-recommended)
-- [Environment variables](#environment-variables)
-- [Troubleshooting](#troubleshooting)
-- [Contributing](#contributing)
-- [License](#license)
+## Browser application
 
----
+The active browser UI supports:
 
-## Description
-Trackr helps you track job applications (status, company, role), schedule follow-ups and reminders, manage multiple resumes, and keep notes and communications together. The repository currently uses a lightweight in-memory store for rapid development; moving to Firestore or another DB is straightforward and documented below.
+- application records with company, position, location, source, status, priority, dates, and notes
+- Saved / Applied / Interview / Offer / Rejected workflow columns
+- filtering, search, sorting, and archived applications
+- follow-up dates and reminder calculations
+- communication notes/history per application
+- a master resume attached to the user's application state
+- Firestore persistence for the main application tracker
 
-This README follows the structure you provided and adapts it specifically for the Trackr project.
+The current Firestore path used by the application is a single <code>users/currentUser</code> document containing the master resume and application array.
 
-## Technologies Used
-- Node.js + Express (backend)
-- Vite (frontend)
-- Firebase (optional - Auth, Firestore, Storage)
-- Vanilla JavaScript, HTML, CSS (frontend pages)
-- nodemon (development)
+## Resume workspace
 
-## Project Structure
-```
+The repository also contains a client-side resume workspace that is separate from the main Firestore tracker.
+
+It supports:
+
+- a master resume plus role/company variants
+- LaTeX text editing
+- localStorage-backed resume tracks
+- copying LaTeX to the clipboard
+- downloading a <code>.tex</code> file
+- sending the current LaTeX snippet to Overleaf
+- local snapshot/variant UI
+
+### "AI" helper
+
+The checked-in resume assistant is **not an LLM**. It is an offline, rule/template-based helper that detects keywords in the user's question and returns predefined guidance for tailoring, ATS formatting, cover letters, action verbs, and similar resume topics.
+
+That distinction is intentional here so the README matches the implementation.
+
+## Express API prototype
+
+<code>backend/</code> contains a separate Express 5 API with routes for:
+
+- creating applications
+- listing/filtering/searching applications
+- fetching an application by ID
+- updating and deleting applications
+- changing status
+- reading status history
+- health checks
+
+Its current database module is an in-memory array with pagination and filtering helpers. This API is **not currently the persistence layer used by the main Vue/Firestore frontend**.
+
+## Stack
+
+### Frontend
+
+- Vue 3
+- Vite 7
+- JavaScript
+- Firebase Web SDK / Firestore
+- HTML/CSS
+- localStorage for resume-track data
+- LaTeX-oriented resume editing utilities
+
+React dependencies are present in <code>frontend/package.json</code>, but the current <code>main.jsx</code> imports and mounts the Vue implementation.
+
+### Backend prototype
+
+- Node.js
+- Express 5
+- CORS
+- dotenv
+- nodemon
+- in-memory application store
+
+## Repository layout
+
+~~~text
 Trackr/
 ├── frontend/
-│   ├── index.html
-│   ├── profile.html
-│   ├── resumes.html
-│   ├── public/                # static assets (logo.png served at /logo.png)
-│   └── src/
-│       └── styles.css
+│   ├── src/
+│   │   ├── main.jsx
+│   │   └── services/
+│   │       ├── app.js
+│   │       ├── firebase.js
+│   │       ├── resumes.js
+│   │       ├── ai-chatbot-offline.js
+│   │       └── ai-assistant-offline.js
+│   └── package.json
 ├── backend/
-│   └── src/
-│       ├── app.js
-│       ├── server.js
-│       ├── routes/
-│       ├── controllers/
-│       ├── db/
-│       │   └── applicationDb.js   # in-memory store (dev)
-│       └── middlewares/
+│   ├── src/
+│   │   ├── controllers/
+│   │   ├── db/
+│   │   ├── routes/
+│   │   ├── app.js
+│   │   └── server.js
+│   └── package.json
 └── README.md
-```
+~~~
 
-## Architecture Flow
-```
-Frontend (Vite) <---> Backend (Express API)
-  • Static pages served by Vite during dev
-  • API calls from frontend to backend (/api/*)
-  • Optional: Backend verifies Firebase ID tokens when Auth is enabled
-```
+## Frontend setup
 
-## Data & Storage
-- Development: in-memory store at `backend/src/db/applicationDb.js` (fast prototyping)
-- Production: recommended to migrate to Firestore or another persistent DB
-- Resumes: stored client-side for editing; use Firebase Storage for server-backed storage when ready
-
----
-
-## Installation & Setup
-Prerequisites:
-- Node.js (v16+ recommended)
-- npm (or yarn)
-
-1) Backend
-
-```zsh
-cd /path/to/Trackr/backend
+~~~bash
+git clone https://github.com/muhzain05/Trackr.git
+cd Trackr/frontend
 npm install
-# Optional for Firebase Admin usage (see Firebase section):
-# export GOOGLE_APPLICATION_CREDENTIALS="/absolute/path/to/service-account.json"
-npm run dev    # starts nodemon -> default http://localhost:5000
-```
+npm run dev
+~~~
 
-2) Frontend
+The Firestore client reads <code>VITE_FIREBASE_API_KEY</code> from the Vite environment. Other Firebase project identifiers are currently present in <code>firebase.js</code>.
 
-```zsh
-cd /path/to/Trackr/frontend
-npm install
-npm run dev    # starts Vite -> usually http://localhost:5173
-```
+## Backend status
 
-Open the Vite URL printed in the terminal (usually `http://localhost:5173`). Backend API base URL: `http://localhost:5000` (health: `/api/health`).
+The Express side is a prototype and is not ready to present as a production backend. In the current checked-in <code>backend/src/app.js</code>, CORS middleware is invoked before <code>app</code> is initialized; that file needs a small initialization-order fix before the backend can start cleanly.
 
-## Usage
-- Use the UI pages in `frontend/` (index, profile, resumes) during development.
-- Backend exposes REST endpoints under `/api` (see `backend/src/routes/`).
+After that source issue is corrected, its scripts are:
 
-## Scripts
-- Backend (`/backend/package.json`):
-  - `npm run dev` — start with nodemon
-  - `npm start` — run production server (node)
-- Frontend (`/frontend/package.json`):
-  - `npm run dev` — start Vite dev server
-  - `npm run build` — build for production
-  - `npm run preview` — preview built output
-
----
-
-## Firebase integration (recommended)
-Follow this single-option flow to integrate Firebase securely.
-
-1. In Firebase Console, create a project and enable Auth and Firestore (Storage if needed).
-2. Create a service account (Project Settings → Service Accounts) and download the JSON key. Keep it out of the repo.
-3. On the server, set the environment variable:
-
-```zsh
-export GOOGLE_APPLICATION_CREDENTIALS="/absolute/path/to/service-account.json"
-```
-
-4. Install Admin SDK in backend:
-
-```zsh
+~~~bash
 cd backend
-npm install firebase-admin
-```
+npm install
+npm run dev
+~~~
 
-5. Initialize admin SDK (example file: `backend/src/config/firebase.js`):
+## Current limitations
 
-```js
-const admin = require('firebase-admin');
+- frontend and REST backend use separate storage paths and are not integrated
+- Firestore data is stored under a fixed <code>currentUser</code> document rather than authenticated per-user records
+- the resume assistant is deterministic/template based
+- backend tests are not implemented in the current package script
+- the Express backend currently has the initialization-order issue described above
 
-if (!admin.apps.length) {
-  admin.initializeApp(); // uses GOOGLE_APPLICATION_CREDENTIALS
-}
+## Author
 
-const db = admin.firestore();
-const auth = admin.auth();
-module.exports = { admin, db, auth };
-```
-
-6. Frontend: create a Firebase Web App in Project Settings and add client config to a `.env` file (Vite exposes env vars prefixed with `VITE_`):
-
-```
-VITE_FIREBASE_API_KEY=...
-VITE_FIREBASE_AUTH_DOMAIN=...
-VITE_FIREBASE_PROJECT_ID=...
-```
-
-7. Use client SDK on frontend for sign-in. For protected API routes, have the client send the ID token and verify it on the backend with `auth.verifyIdToken()`.
-
-Recommendation: run Firebase Emulator Suite locally for Auth/Firestore testing.
-
----
-
-## Environment variables
-- `PORT` — backend port (defaults to 5000)
-- `NODE_ENV` — environment (development/production)
-- `GOOGLE_APPLICATION_CREDENTIALS` — absolute path to Firebase service account JSON (server only)
-- `VITE_FIREBASE_*` — frontend Firebase client config (in `.env`)
-
-Create a `.env.example` with the keys (do not include secrets) before sharing the repo.
-
-## Troubleshooting
-- Vite import errors: ensure dependencies are installed in `/frontend` and imports use correct package names. Example: if `latex.js` import fails, either install the correct package (e.g., `npm install latex.js`) or guard/remove the import while working.
-- `npm` missing `package.json`: ensure you run commands inside `frontend/` or `backend/` directories.
-- API 404s: confirm backend is running on expected `PORT` and frontend is pointing to correct API base URL. Configure a Vite proxy if necessary during dev.
-
-## Contributing
-1. Fork and branch from `main` (or `firebase_connection` if working on that branch):
-
-```bash
-git checkout -b feature/your-feature
-# implement changes
-git add .
-git commit -m "feat: short description"
-git push origin feature/your-feature
-# open a pull request
-```
-
-- Keep secrets out of the repo. Use `.env` and platform secret managers.
-- Add tests and documentation for new features.
-
-## License
-This project is licensed under the [MIT License](LICENSE).
-
----
+Muhammad Zain Asad — [GitHub](https://github.com/muhzain05)
